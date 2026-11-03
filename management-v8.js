@@ -3,7 +3,7 @@
 (() => {
   const original={dashboard:orgDashboard,profile:orgProfile,render,roster:orgRosterHTML};
   const cache=new Map(),pending=new Set(),errors=new Map(),settings=new Map(),openDetails=new Map(),seenScenes=new Set();
-  const views=[['roster','教师总表'],['appraisal','评价考核'],['development','培养晋升'],['teams','团队岗位']];
+  const views=[['roster','教师总表'],['appraisal','评价考核'],['development','培养晋升'],['teams','团队岗位'],['structure','队伍结构']];
   const safe=v=>esc(v==null?'':String(v)),list=v=>Array.isArray(v)?v:[];
   const actor=()=>state.data?.actor||{},restricted=()=>['mentor','information_officer','independent_reviewer','teaching_leader','grade_leader','teacher'].includes(actor().role);
   const scopeKey=()=>[state.actor,org.campus||'',org.department||''].join('|');
@@ -52,8 +52,8 @@
       headers=['教师','发展意愿','目标方向 / 岗位','准备情况','培养目标','导师 / 负责人','学校支持','下次复评'];
       body=rows.map(t=>{const c=t.career||{};return `<tr data-v8-row="${safe(t.id)}"><td>${name(t)}</td><td>${safe(c.aspiration||'立足当前岗位')}</td><td><span class="v8-track">${managementTrack(c.track)?'管理方向':'专业方向'}</span>${safe(c.target_role||'持续专业成长')}</td><td>${safe(c.readiness||careerStatus(c.status))}</td><td class="v8-cell-reading">${safe(c.goal||'结合本期任务回看变化')}</td><td>${safe(c.mentor_name||t.primary_action?.owner_name||'学部团队')}</td><td class="v8-cell-reading">${safe(c.school_support||'共同备课与同伴交流')}</td><td>${day(c.review_date||t.primary_action?.review_date)}</td></tr>`;}).join('');
     }else{
-      headers=['教师','第一学历','最终学历','专业','任教学科','周课量','教学评价','家长满意度'];
-      body=rows.map(t=>{const p=t.teaching_profile||{};return `<tr data-v8-row="${safe(t.id)}"><td>${name(t)}</td><td>${education(p.first_education)}</td><td>${education(p.final_education)}</td><td>${safe(p.major||'—')}</td><td>${safe(t.teaching===false?'不适用':t.subject)}</td><td>${loadButton(t)}</td><td><span class="roster-evaluation ${safe(p.evaluation?.status)}">${safe(evaluation(t))}</span><small>${safe(period(p.evaluation?.period||t.evaluation_period))}</small></td><td><b>${safe(satisfaction(t))}</b><small>${safe(period((t.parent_satisfaction||{}).period||t.evaluation_period))}</small></td></tr>`;}).join('');
+      headers=['教师','入职厚外','第一学历','最终学历','专业','任教学科','周课量','教学评价','家长满意度'];
+      body=rows.map(t=>{const p=t.teaching_profile||{};return `<tr data-v8-row="${safe(t.id)}"><td>${name(t)}</td><td>${safe(p.houwai_joined_on||'未填写')}<small>${Number.isInteger(p.tenure_months)?'在厚外'+Math.floor(p.tenure_months/12)+'年'+p.tenure_months%12+'个月':''}</small></td><td>${education(p.first_education)}</td><td>${education(p.final_education)}</td><td>${safe(p.major||'—')}</td><td>${safe(t.teaching===false?'不适用':t.subject)}</td><td>${loadButton(t)}</td><td><span class="roster-evaluation ${safe(p.evaluation?.status)}">${safe(evaluation(t))}</span><small>${safe(period(p.evaluation?.period||t.evaluation_period))}</small></td><td><b>${safe(satisfaction(t))}</b><small>${safe(period((t.parent_satisfaction||{}).period||t.evaluation_period))}</small></td></tr>`;}).join('');
     }
     return `<div class="v8-desktop-table table-scroll"><table id="v8TeacherTable" aria-label="${safe(views.find(v=>v[0]===view)?.[1]||'教师总表')}"><thead><tr>${headers.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${body||`<tr><td colspan="${headers.length}">没有符合条件的人员</td></tr>`}</tbody></table></div>`;
   }
@@ -100,7 +100,8 @@
     if(restricted())return original.dashboard.apply(this,arguments);
     const key=scopeKey(),d=payload();if(!d){load(key,path());return `<section id="v8Management" class="v8-loading" data-v8-loaded="false" role="status"><h2>${safe(org.department||org.campus||'集团总体分析')}</h2><p>${safe(errors.get(key)||'正在整理教师、培养与团队情况…')}</p>${errors.has(key)?'<button data-v8-retry>重新读取</button>':''}</section>`;}
     const s=getSettings(),isDepartment=!!org.department;
-    return `<div id="v8Management" data-v8-loaded="true" data-v8-scope="${safe(key)}">${summary(d,isDepartment)}${isDepartment?`<section id="v8Department">${tabs(s)}${s.view==='teams'?controls(s)+teamView(d,s):rosterView(d,s)}</section>`:comparisons(d)+`<details class="v8-details v8-hr-analysis" data-v8-detail="hr-analysis"><summary>年龄、学历、专业与荣誉结构</summary>${org.summary?orgCharts(org.summary):''}</details>`}</div>`;
+    const talent=()=>window.HouwaiTalentView?window.HouwaiTalentView.html({campus:org.campus||'',department:org.department||''}):'<section class="tal-panel" role="status">正在准备队伍结构分析…</section>';
+    return `<div id="v8Management" data-v8-loaded="true" data-v8-scope="${safe(key)}">${summary(d,isDepartment)}${isDepartment?`<section id="v8Department">${tabs(s)}${s.view==='structure'?talent():s.view==='teams'?controls(s)+teamView(d,s):rosterView(d,s)}</section>`:comparisons(d)+`<details class="v8-details v8-hr-analysis" data-v8-detail="hr-analysis"><summary>队伍结构与培养建议</summary>${talent()}</details>`}</div>`;
   };
   function personal(t){
     const c=t.career||{},comparables=list(t.trend).filter(x=>x.comparable===true),trend=comparables.length>=2?`<div class="v8-mini-trend"><span>同口径变化</span>${comparables.map(x=>`<span>${safe(x.label)} <b>${safe(x.rate)}%</b></span>`).join('<i>→</i>')}</div>`:'';
@@ -124,10 +125,20 @@
     const row=org.detail?.person?.id===id&&org.detail.management_v8||cache.get(state.actor+'|person|'+id);
     if(!row){load(state.actor+'|person|'+id,personalPath(id));return;}
     if(state.profileTab==='growth'&&!document.getElementById('v8ProfileSummary'))hero.insertAdjacentHTML('afterend',personal(row));
-    const tags=hero.querySelector('[data-hu-identity]');if(tags&&!tags.closest('.v8-identity-details')){
-      const groups=[...tags.querySelectorAll('.hu-identity-tag')].slice(0,2),brief=document.createElement('div');brief.className='v8-identity-brief';brief.innerHTML=groups.map(x=>x.outerHTML).join('');if(hero.querySelector('[data-v81-mbti-reference]'))brief.hidden=true;
-      const det=document.createElement('details');det.className='v8-identity-details';det.dataset.v8Detail='identity';det.innerHTML='<summary>本人特点与发展方向</summary>';tags.before(brief,det);det.append(tags);
+    // Preserve categories and always show self-entered tags and work references.
+    hero.querySelector('.v8-identity-brief')?.remove();
+    const folded=hero.querySelector('.v8-identity-details');
+    if(folded){const identity=folded.querySelector('[data-hu-identity]');if(identity)folded.before(identity);folded.remove();}
+    const work=hero.querySelector('[data-v81-mbti-reference]')||document.querySelector('[data-v81-mbti-reference]');
+    const summary=document.getElementById('v8ProfileSummary');
+    if(work&&summary)summary.after(work);
+    window.HouwaiProfileReference?.place();
+    if(!hero.querySelector('[data-vnext-employment]')&&row.teaching_profile?.houwai_joined_on){
+      const employment=row.teaching_profile,months=employment.tenure_months;
+      const tenure=Number.isInteger(months)?'在厚外'+Math.floor(months/12)+'年'+months%12+'个月':'';
+      hero.querySelector('.profile-name')?.insertAdjacentHTML('beforeend',`<p class="vnext-employment" data-vnext-employment><span>入职厚外 <time datetime="${safe(employment.houwai_joined_on)}">${safe(day(employment.houwai_joined_on))}</time></span><b>${safe(tenure)}</b></p>`);
     }
+
     const back=document.querySelector('[data-org-back]');if(back){back.removeAttribute('data-org-back');back.setAttribute('data-v8-return','');back.textContent='‹ 返回教师名单';}
     if(restoreScroll!=null){const top=restoreScroll;restoreScroll=null;requestAnimationFrame(()=>window.scrollTo({top,behavior:'instant'}));}
   }
@@ -159,6 +170,6 @@
   document.addEventListener('toggle',e=>{const el=e.target;if(el.matches?.('details[data-v8-detail]')&&el.isConnected&&detailContext)openDetails.set(detailContext+'|'+el.dataset.v8Detail,el.open);},true);
   window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(decorate,100);});
   window.addEventListener('hashchange',()=>{if(location.hash.startsWith('#profile/')&&org.detailId!==profileId)window.scrollTo({top:0,behavior:'instant'});});
-  window.HouwaiV8={get payload(){return payload();},get profile(){return org.detail?.management_v8;},settings,cache};
+  window.HouwaiV8={get payload(){return payload();},get profile(){return org.detail?.management_v8;},settings,cache,setView(view){if(views.some(x=>x[0]===view)){getSettings().view=view;getSettings().page=1;render();}}};
   if(state.data)render();
 })();

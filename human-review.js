@@ -92,24 +92,47 @@
   const originalRender=render;render=function(){if(state.data&&restrictedRole())return restrictedRender();const result=originalRender.apply(this,arguments);inject();return result;};
   const identityGroups=[['characteristics','性格特点'],['specialties','特长'],['potential','发展方向']];
   const mergedSpecialties=p=>[...new Set([...arr(p.identity_tags?.specialties),...arr(p.identity_tags?.strengths)])];
+  const workAreas=[['teaching','教学','◎'],['collaboration','协作','✦'],['communication','沟通','↗']];
+  function characterBadge(reference){
+    const character=reference.character||{},code=reference.type||'',family=['analyst','diplomat','sentinel','explorer'].includes(character.family)?character.family:'neutral';
+    const path=String(character.image_url||''),licensed=['licensed','original','public_domain'].includes(character.license_status);
+    const localAsset=licensed&&character.transparent===true&&/^\/?assets\/personalities\/[a-z0-9_-]+\.(?:svg|png|webp)$/i.test(path);
+    const image=localAsset?`<img src="${safe(path.replace(/^\//,''))}" alt="" data-vnext-character-image loading="lazy" decoding="async">`:'';
+    return `<span class="vnext-character" data-family="${family}" aria-hidden="true">${image}<span class="vnext-character-fallback" ${localAsset?'hidden':''}><b>${safe(code)}</b><span>${safe(character.role_name||'类型参考')}</span></span></span>`;
+  }
   function mbtiWorkReference(reference,c){
-    const work=reference.work_style||{},short=arr(reference.short_tags).slice(0,2);
-    if(!reference.type||!short.length||!work.teaching)return '';
-    const source=/^https:\/\//.test(reference.source_url||'')?`<a href="${safe(reference.source_url)}" target="_blank" rel="noopener noreferrer">参考来源 ↗</a>`:'';
-    return `<details id="mbti-work-${safe(c.teacher)}" class="v81-mbti-reference" data-v81-mbti-reference="${safe(c.teacher)}" data-v8-detail="mbti-work"><summary data-v81-mbti-toggle><span class="v81-work-tags">${short.map((text,i)=>`<span class="v81-work-short work-${i}">${safe(text)}</span>`).join('')}</span><span class="v81-work-toggle-label">工作风格 <i aria-hidden="true">⌄</i></span></summary><div class="v81-work-body"><header><b>${safe(work.headline||'教学与协作偏好')}</b><span>${safe(reference.note||'类型参考 · 以本人确认为准')}</span></header><div class="v81-work-grid">${[['teaching','教学开展','◎'],['collaboration','团队协作','✦'],['communication','沟通方式','↗']].map(([key,label,glyph])=>`<article class="v81-work-item"><h3><i aria-hidden="true">${glyph}</i>${label}</h3><p>${safe(work[key]||'可结合日常相处与本人交流了解。')}</p></article>`).join('')}</div>${work.attention?`<p class="v81-work-attention"><b>可以与老师聊聊</b>${safe(work.attention)}</p>`:''}<footer><span>${safe(reference.type_context_note||'按类型延伸的工作参考，与本人填写的特点分开看。')}</span>${source}</footer></div></details>`;
+    const work=reference.work_style||{},tags=arr(reference.reference_tags);
+    if(!reference.type||!tags.length||!work.teaching)return '';
+    const source=/^https:\/\//.test(reference.work_source_url||'')?`<a href="${safe(reference.work_source_url)}" target="_blank" rel="noopener noreferrer">了解类型参考 ↗</a>`:'';
+    return `<section id="mbti-work-${safe(c.teacher)}" class="vnext-work-reference" data-vnext-work-reference="${safe(c.teacher)}" aria-labelledby="mbti-work-title-${safe(c.teacher)}"><header>${characterBadge(reference)}<div><span class="vnext-reference-kicker">管理沟通参考 · ${safe(reference.type)} ${safe(reference.character?.role_name||'')}</span><h2 id="mbti-work-title-${safe(c.teacher)}">可能偏好的工作方式</h2><p>类型参考，实际以本人表达和日常表现为准。</p></div></header><div class="vnext-reference-tags" aria-label="六项工作倾向参考">${workAreas.map(([key,label,glyph])=>`<div class="vnext-reference-area" data-area="${key}"><span class="vnext-area-label"><i aria-hidden="true">${glyph}</i>${label}</span>${tags.filter(t=>t.area===key).map(t=>`<span class="vnext-reference-tag" data-area="${key}">${safe(t.label)}</span>`).join('')}</div>`).join('')}</div><dl class="vnext-work-lines">${workAreas.map(([key,label])=>`<div data-area="${key}"><dt>${label}</dt><dd>${safe(work[key]||'可结合本人表达和日常相处了解。')}</dd></div>`).join('')}</dl><footer><span>不用于评优、岗位或薪酬判断。</span>${source}</footer></section>`;
+  }
+  function placeWorkReference(){
+    const panel=document.querySelector('[data-vnext-work-reference]'),hero=document.querySelector('.profile-hero');
+    if(!panel||!hero)return;
+    const summary=document.getElementById('v8ProfileSummary'),anchor=summary||hero;
+    if(anchor.nextElementSibling!==panel)anchor.after(panel);
   }
   function injectIdentity(s,c){
     if(s.teacher_id!==c.teacher)return;
-    const name=document.querySelector('.profile-hero .profile-name');if(!name)return;
-    name.querySelector('[data-hu-identity]')?.remove();name.querySelector('[data-hu-mbti]')?.remove();name.querySelector('[data-v81-mbti-reference]')?.remove();
-    const p=s.profile||{},tags=p.identity_tags||{},reference=s.mbti_reference||{},code=reference.type||'',canEdit=!isPublic()&&s.capabilities?.edit_profile;
-    const values={characteristics:arr(tags.characteristics).length?tags.characteristics:arr(reference.traits).slice(0,2),specialties:mergedSpecialties(p),potential:arr(tags.potential)};
-    const hasWork=!!(reference.work_style?.teaching&&arr(reference.short_tags).length),pillTag=canEdit||hasWork?'button':'span';
-    const pill=`<${pillTag} class="hu-mbti ${code?'':'is-empty'}" data-hu-mbti="${safe(c.teacher)}" ${canEdit?'data-hu-development-action="tags" type="button"':hasWork?`type="button" data-v81-mbti-type aria-controls="mbti-work-${safe(c.teacher)}" aria-expanded="false"`:''} title="${canEdit?'编辑本人填写的MBTI与特点':'查看教学、协作与沟通的类型参考'}"><small>MBTI</small><b>${safe(code||'待本人填写')}</b></${pillTag}>`;
+    const hero=document.querySelector('.profile-hero'),name=hero?.querySelector('.profile-name');if(!name)return;
+    name.querySelector('[data-hu-identity]')?.remove();name.querySelector('[data-hu-mbti]')?.remove();name.querySelector('[data-v81-mbti-reference]')?.remove();name.querySelector('[data-vnext-employment]')?.remove();
+    document.querySelectorAll('[data-vnext-work-reference]').forEach(el=>el.remove());
+    const p=s.profile||{},tags=p.identity_tags||{},reference=s.mbti_reference||{},code=p.mbti||reference.type||'',canEdit=!isPublic()&&s.capabilities?.edit_profile;
+    const values={characteristics:arr(tags.characteristics),specialties:mergedSpecialties(p),potential:arr(tags.potential)};
+    const pillTag=canEdit?'button':'span';
+    const pill=`<${pillTag} class="hu-mbti ${code?'':'is-empty'}" data-hu-mbti="${safe(c.teacher)}" ${canEdit?'data-hu-development-action="tags" type="button"':''} title="${canEdit?'编辑本人填写的MBTI与特点':'本人填写的MBTI类型'}"><small>MBTI</small><b>${safe(code||'待本人填写')}</b></${pillTag}>`;
     const line=name.querySelector('.profile-name-line');if(line)line.insertAdjacentHTML('beforeend',pill);
-    const html=`<div class="hu-identity-tags" data-hu-identity="${safe(c.teacher)}" aria-label="教师本人填写的性格特点、特长与发展方向">${identityGroups.map(([key,label])=>`<span class="hu-identity-group" data-kind="${key}"><span class="hu-identity-label">${label}</span>${values[key].length?values[key].slice(0,2).map(value=>`<span class="hu-identity-tag">${safe(value)}</span>`).join(''):'<span class="hu-identity-pending">待本人补充</span>'}</span>`).join('')}<span class="hu-identity-source" title="MBTI特点为参考描述；特长与发展方向由本人填写。">本人填写${code?' · MBTI特点供参考':''}</span>${canEdit?'<button class="text-link" data-hu-development-action="tags">编辑MBTI与标签</button>':''}</div>`;
-    const workHtml=mbtiWorkReference(reference,c);
-    if(line)line.insertAdjacentHTML('afterend',workHtml+html);else name.insertAdjacentHTML('beforeend',pill+workHtml+html);
+    const html=`<div class="hu-identity-tags" data-hu-identity="${safe(c.teacher)}" aria-label="教师本人填写的性格特点、特长与发展方向">${identityGroups.map(([key,label])=>`<span class="hu-identity-group" data-kind="${key}"><span class="hu-identity-label">${label}</span>${values[key].length?values[key].slice(0,2).map(value=>`<span class="hu-identity-tag" data-kind="${key}">${safe(value)}</span>`).join(''):'<span class="hu-identity-pending">待本人补充</span>'}</span>`).join('')}<span class="hu-identity-source">本人填写</span>${canEdit?'<button class="text-link" data-hu-development-action="tags">编辑MBTI与标签</button>':''}</div>`;
+    if(line)line.insertAdjacentHTML('afterend',html);else name.insertAdjacentHTML('beforeend',pill+html);
+    const employment=s.teaching_profile||{},months=employment.tenure_months;
+    if(employment.houwai_joined_on&&Number.isInteger(months)){
+      const years=Math.floor(months/12),rest=months%12,tenure=years?`${years}年${rest?rest+'个月':''}`:`${rest}个月`;
+      const joined=String(employment.houwai_joined_on).replaceAll('-','.');
+      name.insertAdjacentHTML('beforeend',`<p class="vnext-employment" data-vnext-employment><span>入职厚外 <time datetime="${safe(employment.houwai_joined_on)}">${safe(joined)}</time></span><b>在厚外${safe(tenure)}</b></p>`);
+    }
+    const workHtml=state.profileTab==='growth'&&s.capabilities?.view_work_style_reference?mbtiWorkReference(reference,c):'';
+    if(workHtml)hero.insertAdjacentHTML('afterend',workHtml);
+    placeWorkReference();
   }
   function developmentPlaceholder(c){const error=errors.get(keyFor(c));return `<section id="teacherDevelopmentCard" class="hu-panel hu-loading" data-hu-loaded="false"><h2>我的特点与成长目标</h2><p>${error?safe(error):'正在读取教师本人填写的特点、学期目标与学年目标…'}</p></section>`;}
   function currentDevelopment(){const c=profileContext();return c?cache.get(keyFor({teacher:c.teacher,development:true})):null;}
@@ -205,12 +228,11 @@
     try{if(el.hasAttribute('data-hu-view'))view(el.dataset.huView);else if(el.hasAttribute('data-hu-period')){const parts=el.dataset.huPeriod.split('|');hu.periodType=parts[0];hu.period=parts[1];render();}else if(el.hasAttribute('data-hu-action'))openAction(el.dataset.huAction,el.dataset.huId||'');else{const c=profileContext()||dashboardContext();if(c){errors.delete(keyFor(c));load(c,true);render();}}}catch(err){toast(err.message,true);}
   },true);
   document.addEventListener('submit',async e=>{const f=e.target.closest('[data-hu-form]');if(!f)return;e.preventDefault();e.stopImmediatePropagation();const b=f.querySelector('[type=submit]'),status=f.querySelector('.hu-form-status');b.disabled=true;try{await submit(f);}catch(err){if(status.isConnected)status.textContent=err.message;toast(err.message,true);}finally{if(b.isConnected)b.disabled=false;}},true);
-  document.addEventListener('click',e=>{const trigger=e.target.closest('[data-v81-mbti-type]');if(!trigger)return;const panel=document.getElementById(trigger.getAttribute('aria-controls'));if(!panel)return;e.preventDefault();e.stopImmediatePropagation();panel.open=!panel.open;trigger.setAttribute('aria-expanded',String(panel.open));},true);
-  document.addEventListener('toggle',e=>{const panel=e.target;if(!panel.matches?.('[data-v81-mbti-reference]'))return;const trigger=document.querySelector('[data-v81-mbti-type][aria-controls="'+panel.id+'"]');trigger?.setAttribute('aria-expanded',String(panel.open));},true);
-  document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;const panel=document.querySelector('[data-v81-mbti-reference][open]');if(!panel)return;const trigger=document.querySelector('[data-v81-mbti-type][aria-controls="'+panel.id+'"]');if(!panel.contains(document.activeElement)&&document.activeElement!==trigger)return;e.preventDefault();e.stopImmediatePropagation();panel.open=false;(trigger||panel.querySelector('summary'))?.focus();},true);
+  document.addEventListener('error',e=>{const image=e.target;if(!image.matches?.('[data-vnext-character-image]'))return;image.hidden=true;const fallback=image.parentElement.querySelector('.vnext-character-fallback');if(fallback)fallback.hidden=false;},true);
   document.addEventListener('change',e=>{if(e.target.name==='mbti'&&e.target.closest('[data-hu-form="development-tags"]')){const form=e.target.closest('form'),ref=currentDevelopment()?.mbti_options?.[e.target.value]||[];form.querySelector('[name="tags_characteristics"]').value=ref.slice(0,2).join('，');const box=form.querySelector('#huMbtiReference p');if(box)box.textContent=ref.length?ref.join('、'):'尚未填写MBTI，可直接写自己的特点。';}if(e.target.id==='actorSelect')close();const f=e.target.closest('[data-hu-form="development-goals"]');if(f&&e.target.name==='period_type'){const type=e.target.value;f.querySelector('[name=period]').innerHTML=goalPeriods(type).map(([v,l])=>`<option value="${safe(v)}">${safe(l)}</option>`).join('');f.querySelector('[name=due_date]').value=type==='year'?'2027-08-31':'2027-01-20';}},true);
   window.addEventListener('hashchange',close);
   document.addEventListener('keydown',e=>{const m=document.getElementById('humanReviewModal');if(!m)return;if(e.key==='Escape'){e.preventDefault();e.stopImmediatePropagation();close();}if(e.key==='Tab'){const list=[...m.querySelectorAll('button:not(:disabled),input:not([type=hidden]),textarea,select')].filter(x=>x.offsetParent!==null),a=list[0],b=list.at(-1);if(e.shiftKey&&document.activeElement===a){e.preventDefault();b?.focus();}else if(!e.shiftKey&&document.activeElement===b){e.preventDefault();a?.focus();}}},true);
   window.HouwaiHumanReview={clear(){cache.clear();errors.clear();},inject,cache};
+  window.HouwaiProfileReference={place:placeWorkReference};
   if(state.data)render();
 })();

@@ -29,6 +29,14 @@
 @media(prefers-reduced-motion:reduce){.v81-app *,.v81-app *:before,.v81-app *:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}.v81-app .v8-teacher-card:hover,.v81-app .v8-org-card:hover,.v81-app button:active{transform:none!important}}
 
 /* Three campuses, one shared data source and one photo card per campus. */
+.v81-app .side-bottom .v81-support-note{padding:14px 12px 13px;margin-top:18px;border:1px solid #f0e3df;border-radius:9px;background:#fff9f6;color:#52637c;line-height:1.6}
+.v81-app .v81-support-note>strong{display:block;margin:0 0 10px;color:#344966;font-size:13px;font-weight:650;white-space:nowrap;letter-spacing:0}
+.v81-app .v81-support-note>ol{list-style:none;margin:0;padding:0}
+.v81-app .v81-support-note li{position:relative;display:flex;align-items:center;min-height:25px;padding-left:17px;color:#566b85;font-size:13px;white-space:nowrap}
+.v81-app .v81-support-note li:before{content:"";position:absolute;left:1px;top:9px;width:6px;height:6px;border-radius:50%;background:#ee3f3a;box-shadow:0 0 0 3px #ee3f3a10}
+.v81-app .v81-support-note li:not(:last-child):after{content:"";position:absolute;left:3px;top:17px;width:1px;height:16px;background:#e6d9d3}
+.v81-app .v81-support-note li:nth-child(2):before{background:#2164b5;box-shadow:0 0 0 3px #2164b510}
+.v81-app .v81-support-note li:nth-child(3):before{background:#087c70;box-shadow:0 0 0 3px #087c7010}
 .v81-campus-image{bottom:auto!important;height:212px;background-position:center 60%!important}
 @media(min-width:768px) and (max-width:1100px){.v81-campus-image{height:193px}}
 @media(max-width:767px){.v81-campus-image{height:186px}}

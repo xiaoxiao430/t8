@@ -1,4 +1,4 @@
-const PUBLIC_DEMO_VERSION = '20261103-visual-v81';
+const PUBLIC_DEMO_VERSION = '20261103-research-people-v9-r1';
 'use strict';
 /* Public Pages adapter: read-only, fresh synthetic snapshots, no live backend. */
 state.actor = 'group-all';
@@ -25,6 +25,34 @@ function publicRows(data, q) {
 request = async function(path, options={}) {
   if ((options.method||'GET').toUpperCase()!=='GET') throw new Error('公开演示仅供浏览，新增与修改请使用本地完整版。');
   const data=await publicData, url=new URL(path,'https://public.invalid'), route=url.pathname,q=url.searchParams;
+  if (route==='/future-exam/catalog') {
+    if(!window.HouwaiFutureExam||!data.future_exam_source)throw new Error('未来考试作业资料规划暂未读取。');
+    return publicCopy(window.HouwaiFutureExam.catalog(data.future_exam_source,Object.fromEntries(q)));
+  }
+  if (route==='/learning-sources/catalog') {
+    if(!window.HouwaiLearningSources||!data.learning_sources_source)throw new Error('系统接入准备资料暂未读取。');
+    return publicCopy(window.HouwaiLearningSources.catalog(data.learning_sources_source,Object.fromEntries(q)));
+  }
+  if(route.startsWith('/learning-sources/')) {
+    if(!window.HouwaiLearningSources||!data.learning_sources_source)throw new Error('系统接入准备资料暂未读取。');
+    const parts=route.split('/');
+    if(parts.length===4&&parts[3]==='capabilities')return publicCopy(window.HouwaiLearningSources.capabilities(data.learning_sources_source,parts[2]));
+    if(parts.length===5&&parts[3]==='data')return window.HouwaiLearningSources.fetch(data.learning_sources_source,parts[2],parts[4]);
+    throw new Error('数据接入接口不存在。');
+  }
+  if (route==='/research-hub/catalog'||route==='/research-hub/works') {
+    if(!window.HouwaiResearchHub||!data.research_hub_source)throw new Error('学科作品库暂未读取，请刷新重试。');
+    return publicCopy(window.HouwaiResearchHub[route.endsWith('/catalog')?'catalog':'works'](data.research_hub_source,Object.fromEntries(q)));
+  }
+  if (route.startsWith('/platform/')) {
+    const method={'/platform/overview':'overview','/platform/teaching':'teaching','/platform/research':'research','/platform/salary':'salary','/platform/data-center':'data_center'}[route];
+    if(!method||!window.HouwaiPlatform||!data.platform_source)throw new Error('当前管理专题尚未读取，请刷新重试。');
+    return publicCopy(window.HouwaiPlatform[method](data.platform_source,Object.fromEntries(q)));
+  }
+  if (route==='/organization/talent-structure'||route==='/organization/talent-structure/personnel') {
+    if(!window.HouwaiTalent||!data.talent_structure_source)throw new Error('当前队伍结构资料尚未读取。');
+    return publicCopy(window.HouwaiTalent[route.endsWith('/personnel')?'personnel':'analyze'](data.talent_structure_source,Object.fromEntries(q)));
+  }
   if (route==='/organization/management') {
     const campus=q.get('campus')||'',department=q.get('department')||'',period=q.get('period')||'2026-fall';
     const view=q.get('view')||'all';
@@ -86,7 +114,7 @@ layout=function(content) {
   const control=box.querySelector('.actor-control');
   if(control)control.innerHTML='<span class="tag blue">集团视角 · 公开演示</span>';
   const notice=box.querySelector('.demo-notice span:not(.demo-dot)');
-  if(notice)notice.textContent='公开只读演示 · 个人信息与评价均为演示数据 · 真实系统未接入';
+  if(notice)notice.textContent='公开只读演示 · 教师档案与评价为演示数据 · 真实系统未接入';
   const brand=box.querySelector('.brand');if(brand)brand.setAttribute('href','#group');
   const month=box.querySelector('#appraisalMonth');if(month){month.min='2026-10';month.max='2026-10';month.title='本演示收录2026年10月';}
   return box.innerHTML;

@@ -1,0 +1,7 @@
+/* Integration styles for the always-visible profile and the new product name. */
+.brand strong{font-size:17px;line-height:1.45;white-space:normal;letter-spacing:0}
+.brand small{font-size:10px;letter-spacing:.5px}
+.roster-col-joined{width:116px}
+#v8TeacherTable td:nth-child(2){white-space:nowrap}
+.vnext-employment time{font-variant-numeric:tabular-nums}
+@media(max-width:767px){.brand strong{font-size:16px}.vnext-employment{font-size:12px}.profile-hero{min-width:0}}
