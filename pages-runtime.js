@@ -1,4 +1,4 @@
-const PUBLIC_DEMO_VERSION = '20261103-management-v8';
+const PUBLIC_DEMO_VERSION = '20261103-visual-v81';
 'use strict';
 /* Public Pages adapter: read-only, fresh synthetic snapshots, no live backend. */
 state.actor = 'group-all';

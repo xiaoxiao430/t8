@@ -30,10 +30,11 @@
     if(reading)return;reading=true;
     try {
       const parts=location.hash.replace(/^#\/?/,'').split('/').map(x=>{try{return decodeURIComponent(x);}catch{return x;}});
-      const [page,c='',d='']=parts;
+      let [page,c='',d='']=parts;
       if(['group','overview','roster'].includes(page)||page==='profile'&&!c){
         const roster=page==='roster'||page==='profile',campus=c,department=d;
         routeError=parts.length>3||!validScope(campus,department)?'该组织范围不存在或不在当前授权范围，请从集团重新选择校区与学部。':'';
+        if(!routeError&&page==='overview'&&(state.data?.actor.role==='group'||typeof publicData!=='undefined')){page='group';history.replaceState(null,'',hashFor(campus,department,'group'));}
         applyScope(campus,department);
         const previous=state.page;state.page=roster?'profile':page;
         if(state.page==='group'&&state.data?.actor.role!=='group')state.page='overview';
@@ -44,6 +45,7 @@
     } finally {reading=false;}
   };
   go=function(page,id){
+    if(page==='overview'&&(state.data?.actor.role==='group'||typeof publicData!=='undefined')){navigate(org.campus,org.department,'group');return;}
     if(page==='group'&&!id){navigate('','','group');return;}
     if(['group','overview','roster'].includes(page)||page==='profile'&&!id){navigate(org.campus,org.department,page);return;}
     return native.go(page,id);
